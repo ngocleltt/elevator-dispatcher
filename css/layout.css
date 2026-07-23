@@ -1,0 +1,153 @@
+.page{
+  max-width:1180px;
+  margin:0 auto;
+  position:relative;
+  z-index:1;
+}
+
+
+.hero{
+  text-align:center;
+  margin-bottom:34px;
+}
+
+.eyebrow{
+  font-family:'Manrope',sans-serif;
+  font-size:11px;
+  font-weight:700;
+
+  text-transform:uppercase;
+  letter-spacing:.28em;
+
+  color:var(--brass-light);
+
+  margin-bottom:10px;
+}
+
+.hero h1{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+
+  font-size:clamp(28px,4vw,40px);
+
+  letter-spacing:-0.01em;
+
+  color:var(--ivory);
+
+  margin-bottom:10px;
+}
+
+.hero h1 em{
+  color:var(--brass-light);
+  font-style:italic;
+}
+
+.rule{
+  width:0;
+  height:1px;
+
+  margin:16px auto;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      var(--brass),
+      transparent
+    );
+
+  animation:growRule 1.1s ease-out forwards .15s;
+}
+
+.subtitle{
+  max-width:520px;
+
+  margin:0 auto;
+
+  color:var(--dim);
+
+  font-size:14.5px;
+  line-height:1.6;
+}
+
+.layout{
+  display:flex;
+  align-items:flex-start;
+  gap:22px;
+
+  flex-wrap:wrap;
+}
+
+
+.shaft-card,
+.control-card{
+  background:var(--panel);
+
+  backdrop-filter:blur(14px);
+
+  border:1px solid var(--hairline);
+  border-radius:var(--radius-lg);
+
+  box-shadow:
+      0 24px 60px -20px rgba(0,0,0,.6),
+      inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+
+.shaft-card{
+  flex:1 1 540px;
+
+  padding:20px;
+}
+
+.shaft-card-header{
+  display:flex;
+
+  justify-content:space-between;
+  align-items:baseline;
+
+  margin-bottom:14px;
+  padding-bottom:14px;
+
+  border-bottom:1px solid var(--hairline);
+}
+
+.plate-label{
+  font-family:'Fraunces',serif;
+  font-style:italic;
+  font-size:16px;
+
+  color:var(--brass-light);
+}
+
+.stats{
+  display:flex;
+  gap:18px;
+
+  color:var(--dim);
+
+  font-size:11.5px;
+
+  letter-spacing:.02em;
+}
+
+.stats b{
+  color:var(--ivory);
+
+  font-family:'JetBrains Mono',monospace;
+  font-weight:700;
+}
+
+
+@media (max-width:960px){
+
+  .layout{
+    flex-direction:column;
+  }
+
+  .shaft-card,
+  .control-card{
+    width:100%;
+  }
+
+}
