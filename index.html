@@ -234,6 +234,58 @@
   .car-arrow{ font-size:8px; color:var(--dim); margin-top:2px; height:8px; }
   .car.doors .car-display{ color:var(--teal); text-shadow:0 0 6px rgba(111,179,171,0.8); }
 
+  /* boarding / car-call panel */
+  #boardingPanels{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:14px;
+  }
+  .boarding-panel{
+    background: rgba(111,179,171,0.06);
+    border:1px solid rgba(111,179,171,0.35);
+    border-radius:var(--radius-md);
+    padding:14px 16px;
+    animation: panelIn 0.3s ease-out;
+  }
+  @keyframes panelIn{
+    from{ opacity:0; transform:translateY(-6px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .boarding-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+    font-size:12.5px;
+  }
+  .boarding-dot{ width:9px;height:9px;border-radius:50%;box-shadow:0 0 6px currentColor; }
+  .boarding-title{ color:var(--ivory); font-weight:600; }
+  .boarding-sub{ color:var(--dim); font-size:11.5px; }
+  .floor-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(34px,1fr));
+    gap:6px;
+  }
+  .floor-pick{
+    height:30px;
+    border-radius:5px;
+    border:1px solid var(--hairline-strong);
+    background:rgba(255,255,255,0.02);
+    color:var(--ivory);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .floor-pick:hover{ border-color:var(--teal); background:rgba(111,179,171,0.12); }
+  .floor-pick:disabled{
+    opacity:0.25;
+    cursor:not-allowed;
+  }
+  .floor-pick.current{ opacity:0.2; cursor:not-allowed; text-decoration:line-through; }
+
   /* control panel */
   .control-card{
     background:var(--panel);
@@ -343,6 +395,7 @@
           <div class="cars-overlay" id="carsOverlay"></div>
         </div>
       </div>
+      <div id="boardingPanels"></div>
     </div>
 
     <div class="control-card">
@@ -369,7 +422,7 @@
 
       <div class="divider"></div>
       <h3>Thuật toán</h3>
-      <p class="algo-note">Mỗi cuộc gọi được giao cho thang gần nhất đang rảnh, hoặc thang đang đi cùng chiều tiện đường. Thang di chuyển liên tục một hướng, phục vụ hết điểm dừng trên đường trước khi đổi chiều.</p>
+      <p class="algo-note">Hall call (▲▼ ngoài hành lang) chỉ báo hướng đi — thang đến đón sẽ mở bảng chọn tầng như trong cabin thật. Car call (số tầng bạn chọn) là điểm đến thực. Trên đường di chuyển, thang tự ghé đón hall call mới nếu cùng hướng và chưa đi qua, ưu tiên hơn cả thang khác đang rảnh ngay tại đó.</p>
     </div>
   </div>
 </div>
@@ -394,6 +447,8 @@ function initState(numFloors, numElevators){
       direction:'idle',
       status:'idle',
       stops:new Set(),
+      boardingAt:null,   // floor number while waiting for passenger to pick a destination
+      boardingDir:null,  // 'up' | 'down' — restricts which floors are pickable
     });
   }
   hallCalls = {};
@@ -455,7 +510,7 @@ function decideDirection(el){
 }
 
 function step(el){
-  if(el.status==='doors') return;
+  if(el.status==='doors' || el.boardingAt!==null) return;
   if(el.stops.size===0){
     el.status='idle'; el.direction='idle'; render(); return;
   }
@@ -469,11 +524,37 @@ function step(el){
 
 function openDoors(el){
   el.stops.delete(el.floor);
+
+  // was this stop triggered by a hall call (someone waiting outside)?
+  let boardedDir = null;
   Object.keys(hallCalls).forEach(k=>{
     const c = hallCalls[k];
-    if(c.floor===el.floor && c.elevatorId===el.id){ delete hallCalls[k]; }
+    if(c.floor===el.floor && c.elevatorId===el.id){ boardedDir = c.dir; delete hallCalls[k]; }
   });
+
   el.status='doors';
+
+  if(boardedDir){
+    // passenger boards — wait for them to pick a destination floor, no auto-timer
+    el.boardingAt = el.floor;
+    el.boardingDir = boardedDir;
+    render();
+  }else{
+    // pure drop-off (car call reached) — doors close automatically
+    render();
+    setTimeout(()=>{ el.status='idle'; step(el); }, DOOR_MS);
+  }
+}
+
+function boardDestination(elevatorId, floor){
+  const el = elevators[elevatorId];
+  if(!el || el.boardingAt===null) return;
+  if(floor===el.floor) return;
+  if(el.boardingDir==='up' && floor<el.floor) return;
+  if(el.boardingDir==='down' && floor>el.floor) return;
+  el.stops.add(floor);
+  el.boardingAt = null;
+  el.boardingDir = null;
   render();
   setTimeout(()=>{ el.status='idle'; step(el); }, DOOR_MS);
 }
@@ -513,8 +594,27 @@ function render(){
     if(el.status==='moving') car.classList.add('moving');
     if(el.status==='doors') car.classList.add('doors');
     disp.textContent = String(el.floor).padStart(2,'0');
-    arrow.textContent = el.status==='doors' ? '◇ OPEN' : (el.direction==='up' ? '▲' : el.direction==='down' ? '▼' : '');
+    arrow.textContent = el.boardingAt!==null ? '◇ PICK' : el.status==='doors' ? '◇ OPEN' : (el.direction==='up' ? '▲' : el.direction==='down' ? '▼' : '');
   });
+
+  // boarding / car-call panels
+  const boardingPanels = document.getElementById('boardingPanels');
+  const waiting = elevators.filter(el=>el.boardingAt!==null);
+  boardingPanels.innerHTML = waiting.map(el=>{
+    let btns = '';
+    for(let f=floors; f>=1; f--){
+      const disabled = f===el.floor || (el.boardingDir==='up' && f<el.floor) || (el.boardingDir==='down' && f>el.floor);
+      btns += `<button class="floor-pick${f===el.floor?' current':''}" ${disabled?'disabled':''} onclick="boardDestination(${el.id},${f})">${f}</button>`;
+    }
+    return `<div class="boarding-panel">
+      <div class="boarding-head">
+        <span class="boarding-dot" style="background:${el.color};color:${el.color}"></span>
+        <span class="boarding-title">Thang #${el.id+1} — chọn tầng đến</span>
+        <span class="boarding-sub">(đang ở tầng ${el.floor}, hướng ${el.boardingDir==='up'?'lên':'xuống'})</span>
+      </div>
+      <div class="floor-grid">${btns}</div>
+    </div>`;
+  }).join('');
 
   for(let f=1; f<=floors; f++){
     const upBtn = document.getElementById('up-'+f);
